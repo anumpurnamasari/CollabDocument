@@ -16,17 +16,48 @@
 
             @forelse ($documents as $document)
 
-                <div class="border-b py-4">
+                <div class="border-b py-4 flex justify-between items-center">
 
-                    <a href="{{ route('documents.show', $document) }}"
-                       class="text-lg font-semibold text-blue-600">
-                        {{ $document->title }}
-                    </a>
+                    <div>
 
-                    <p class="text-sm text-gray-500">
-                        Created:
-                        {{ $document->created_at->diffForHumans() }}
-                    </p>
+                        <a href="{{ route('documents.show', $document) }}"
+                           class="text-lg font-semibold text-blue-600">
+
+                            {{ $document->title }}
+
+                        </a>
+
+                        <p class="text-sm text-gray-500">
+                            Created:
+                            {{ $document->created_at->diffForHumans() }}
+                        </p>
+
+                    </div>
+
+                    <div class="flex gap-2">
+
+                        <a href="{{ route('documents.show', $document) }}"
+                           class="bg-gray-200 px-4 py-2 rounded text-sm">
+
+                            Open
+
+                        </a>
+
+                        <a href="{{ route('documents.history', $document) }}"
+                           class="bg-yellow-400 text-white px-4 py-2 rounded text-sm">
+
+                            History
+
+                        </a>
+
+                        <a href="{{ route('documents.edit', $document) }}"
+                           class="bg-blue-500 text-white px-4 py-2 rounded text-sm">
+
+                            Edit
+
+                        </a>
+
+                    </div>
 
                 </div>
 
@@ -37,5 +68,6 @@
             @endforelse
 
         </div>
+
     </div>
 </x-app-layout>

@@ -3,76 +3,121 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\DocumentRevision;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
 class DocumentController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        $documents = Auth::user()->documents;
+        $documents = Auth::user()->documents()->latest()->get();
 
         return view('documents.index', compact('documents'));
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
         return view('documents.create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
     public function store(Request $request)
     {
-        $request->validate([
-            'title' => 'required|max:255',
+        $validated = $request->validate([
+            'title' => ['required', 'max:255'],
         ]);
 
         $document = Document::create([
             'user_id' => Auth::id(),
-            'title' => $request->title,
+            'title' => $validated['title'],
             'content' => '',
         ]);
 
-        return redirect()->route('documents.show', $document);
+        return redirect()->route('documents.edit', $document);
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Document $document)
     {
         return view('documents.show', compact('document'));
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Document $document)
     {
-        //
+        return view('documents.edit', compact('document'));
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
     public function update(Request $request, Document $document)
     {
-        //
+        $validated = $request->validate([
+            'title' => ['required', 'max:255'],
+            'content' => ['nullable', 'string'],
+        ]);
+
+        // Simpan revision lama sebelum update
+        if (
+            $document->title !== $validated['title'] ||
+            $document->content !== ($validated['content'] ?? '')
+        ) {
+
+            DocumentRevision::create([
+                'document_id' => $document->id,
+                'user_id' => Auth::id(),
+                'title' => $document->title,
+                'content' => $document->content,
+            ]);
+        }
+
+        // Update document
+        $document->update([
+            'title' => $validated['title'],
+            'content' => $validated['content'] ?? '',
+        ]);
+
+        // Untuk autosave AJAX
+        if ($request->expectsJson()) {
+
+            return response()->json([
+                'success' => true,
+            ]);
+        }
+
+        return redirect()->route('documents.edit', $document);
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
+    public function history(Document $document)
+    {
+        $revisions = $document->revisions()->latest()->get();
+
+        return view('documents.history', compact('document', 'revisions'));
+    }
+
+    public function restore(Document $document, DocumentRevision $revision)
+    {
+        if ($revision->document_id !== $document->id) {
+            abort(404);
+        }
+
+        // Simpan current version sebelum restore
+        DocumentRevision::create([
+            'document_id' => $document->id,
+            'user_id' => Auth::id(),
+            'title' => $document->title,
+            'content' => $document->content,
+        ]);
+
+        // Restore revision
+        $document->update([
+            'title' => $revision->title,
+            'content' => $revision->content,
+        ]);
+
+        return redirect()->route('documents.edit', $document);
+    }
+
     public function destroy(Document $document)
     {
-        //
+        $document->delete();
+
+        return redirect()->route('documents.index');
     }
 }

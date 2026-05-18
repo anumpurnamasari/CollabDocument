@@ -12,11 +12,13 @@ class Document extends Model
         'content',
     ];
 
-    /**
-     * Get the user that owns this document.
-     */
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+
+    public function revisions()
+    {
+        return $this->hasMany(DocumentRevision::class);
     }
 }
