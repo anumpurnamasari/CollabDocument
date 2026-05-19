@@ -3,7 +3,9 @@
 namespace App\Http\Controllers;
 
 use App\Models\Document;
+use App\Models\DocumentCollaborator;
 use App\Models\DocumentRevision;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -11,9 +13,21 @@ class DocumentController extends Controller
 {
     public function index()
     {
-        $documents = Auth::user()->documents()->latest()->get();
+        $ownedDocuments = Auth::user()
+            ->documents()
+            ->latest()
+            ->get();
 
-        return view('documents.index', compact('documents'));
+        $sharedDocuments = Auth::user()
+            ->sharedDocuments()
+            ->with('user')
+            ->latest('documents.created_at')
+            ->get();
+
+        return view('documents.index', compact(
+            'ownedDocuments',
+            'sharedDocuments'
+        ));
     }
 
     public function create()
@@ -38,27 +52,43 @@ class DocumentController extends Controller
 
     public function show(Document $document)
     {
+        $this->ensureAccess($document);
+
+        $document->load([
+            'user',
+            'collaborators.user',
+        ]);
+
         return view('documents.show', compact('document'));
     }
 
     public function edit(Document $document)
     {
+        $this->ensureAccess($document);
+
         return view('documents.edit', compact('document'));
+    }
+
+    public function collab(Document $document)
+    {
+        $this->ensureAccess($document);
+
+        return view('documents.collab', compact('document'));
     }
 
     public function update(Request $request, Document $document)
     {
+        $this->ensureAccess($document);
+
         $validated = $request->validate([
             'title' => ['required', 'max:255'],
             'content' => ['nullable', 'string'],
         ]);
 
-        // Simpan revision lama sebelum update
         if (
             $document->title !== $validated['title'] ||
             $document->content !== ($validated['content'] ?? '')
         ) {
-
             DocumentRevision::create([
                 'document_id' => $document->id,
                 'user_id' => Auth::id(),
@@ -67,15 +97,12 @@ class DocumentController extends Controller
             ]);
         }
 
-        // Update document
         $document->update([
             'title' => $validated['title'],
             'content' => $validated['content'] ?? '',
         ]);
 
-        // Untuk autosave AJAX
         if ($request->expectsJson()) {
-
             return response()->json([
                 'success' => true,
             ]);
@@ -86,18 +113,26 @@ class DocumentController extends Controller
 
     public function history(Document $document)
     {
-        $revisions = $document->revisions()->latest()->get();
+        $this->ensureAccess($document);
 
-        return view('documents.history', compact('document', 'revisions'));
+        $revisions = $document->revisions()
+            ->latest()
+            ->get();
+
+        return view('documents.history', compact(
+            'document',
+            'revisions'
+        ));
     }
 
     public function restore(Document $document, DocumentRevision $revision)
     {
+        $this->ensureAccess($document);
+
         if ($revision->document_id !== $document->id) {
             abort(404);
         }
 
-        // Simpan current version sebelum restore
         DocumentRevision::create([
             'document_id' => $document->id,
             'user_id' => Auth::id(),
@@ -105,7 +140,6 @@ class DocumentController extends Controller
             'content' => $document->content,
         ]);
 
-        // Restore revision
         $document->update([
             'title' => $revision->title,
             'content' => $revision->content,
@@ -114,10 +148,69 @@ class DocumentController extends Controller
         return redirect()->route('documents.edit', $document);
     }
 
+    public function share(Request $request, Document $document)
+    {
+        $this->ensureOwner($document);
+
+        $validated = $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $user = User::where('email', $validated['email'])->first();
+
+        if (! $user) {
+            return back()->withErrors([
+                'email' => 'User tidak ditemukan.',
+            ]);
+        }
+
+        if ($user->id === $document->user_id) {
+            return back()->withErrors([
+                'email' => 'Itu owner document ini.',
+            ]);
+        }
+
+        DocumentCollaborator::updateOrCreate(
+            [
+                'document_id' => $document->id,
+                'user_id' => $user->id,
+            ],
+            [
+                'permission' => 'edit',
+            ]
+        );
+
+        return back()->with('success', 'Document shared successfully.');
+    }
+
     public function destroy(Document $document)
     {
+        $this->ensureOwner($document);
+
         $document->delete();
 
         return redirect()->route('documents.index');
+    }
+
+    private function ensureAccess(Document $document): void
+    {
+        $userId = Auth::id();
+
+        $allowed =
+            $document->user_id === $userId ||
+
+            $document->collaborators()
+                ->where('user_id', $userId)
+                ->exists();
+
+        abort_unless($allowed, 403);
+    }
+
+    private function ensureOwner(Document $document): void
+    {
+        abort_unless(
+            $document->user_id === Auth::id(),
+            403
+        );
     }
 }

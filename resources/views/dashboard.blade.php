@@ -1,16 +1,21 @@
 <x-app-layout>
-    <x-slot name="header">
-        <h2 class="font-semibold text-xl text-gray-800 dark:text-gray-200 leading-tight">
-            {{ __('Dashboard') }}
-        </h2>
-    </x-slot>
+    <div class="max-w-5xl mx-auto p-6">
+        <div class="bg-white shadow rounded-lg p-6">
+            <h1 class="text-2xl font-bold mb-2">Dashboard</h1>
+            <p class="text-gray-600 mb-6">Pilih aksi di bawah untuk mulai kerja.</p>
 
-    <div class="py-12">
-        <div class="max-w-7xl mx-auto sm:px-6 lg:px-8">
-            <div class="bg-white dark:bg-gray-800 overflow-hidden shadow-sm sm:rounded-lg">
-                <div class="p-6 text-gray-900 dark:text-gray-100">
-                    {{ __("You're logged in!") }}
-                </div>
+            <div class="grid gap-4 md:grid-cols-2">
+                <a href="{{ route('documents.create') }}"
+                   class="block rounded-lg border p-5 hover:bg-gray-50">
+                    <div class="text-lg font-semibold">Create Document</div>
+                    <div class="text-sm text-gray-500">Buat dokumen baru.</div>
+                </a>
+
+                <a href="{{ route('documents.index') }}"
+                   class="block rounded-lg border p-5 hover:bg-gray-50">
+                    <div class="text-lg font-semibold">Open Documents</div>
+                    <div class="text-sm text-gray-500">Lihat semua dokumen.</div>
+                </a>
             </div>
         </div>
     </div>

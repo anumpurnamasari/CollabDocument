@@ -27,6 +27,8 @@
         "@tiptap/extension-placeholder": "^3.23.4",
         "@tiptap/pm": "^3.23.4",
         "@tiptap/starter-kit": "^3.23.4",
+        "y-websocket": "^3.0.0",
+        "y-websocket-server": "^1.0.2",
         "yjs": "^13.6.30"
     }
 }

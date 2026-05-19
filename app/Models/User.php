@@ -51,4 +51,11 @@ class User extends Authenticatable
     {
         return $this->hasMany(Document::class);
     }
+
+    public function sharedDocuments()
+    {
+        return $this->belongsToMany(Document::class, 'document_collaborators')
+            ->withPivot('permission')
+            ->withTimestamps();
+    }
 }
