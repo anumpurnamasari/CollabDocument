@@ -1,7 +1,7 @@
 <x-app-layout>
     <div class="max-w-5xl mx-auto p-6">
         <div class="bg-white shadow rounded-lg p-6">
-            <div class="flex justify-between items-center mb-4">
+            <div class="flex justify-between items-start mb-4">
                 <div>
                     <h1 class="text-3xl font-bold">
                         {{ $document->title }}
@@ -30,6 +30,20 @@
             </div>
 
             @if (auth()->id() === $document->user_id)
+                <div class="mt-6">
+                    <form action="{{ route('documents.destroy', $document) }}"
+                          method="POST"
+                          onsubmit="return confirm('Delete this document?')">
+                        @csrf
+                        @method('DELETE')
+
+                        <button type="submit"
+                                class="bg-red-500 text-white px-4 py-2 rounded">
+                            Delete Document
+                        </button>
+                    </form>
+                </div>
+
                 <div class="mt-8 border-t pt-6">
                     <h2 class="text-xl font-semibold mb-4">Share Document</h2>
 

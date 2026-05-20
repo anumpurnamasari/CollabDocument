@@ -32,12 +32,12 @@
                 <div class="flex gap-2 ml-4">
 
                     <a href="{{ route('documents.history', $document) }}"
-                       class="bg-yellow-400 text-white px-4 py-2 rounded">
+                       class="bg-gray-200 px-4 py-2 rounded">
                         History
                     </a>
 
                     <a href="{{ route('documents.index') }}"
-                       class="bg-gray-200 px-4 py-2 rounded">
+                       class="bg-blue-500 text-white px-4 py-2 rounded">
                         Back
                     </a>
 
@@ -82,6 +82,9 @@
                 return
             }
 
+            const initialContent =
+                @json($document->content ?? '<p></p>')
+
             const { editor, provider } =
                 window.createCollaborativeEditor({
 
@@ -94,8 +97,40 @@
                         color: '#3b82f6',
                     },
 
-                    initialContent: @json($document->content ?? ''),
+                    initialContent,
                 })
+
+            /*
+            ==========================================
+            FIX ISI DOCUMENT HILANG
+            ==========================================
+            */
+
+            setTimeout(() => {
+
+                const currentText =
+                    editor.getText().trim()
+
+                const currentHtml =
+                    editor.getHTML().trim()
+
+                const isEmpty =
+                    currentText === '' ||
+                    currentHtml === '<p></p>'
+
+                if (
+                    isEmpty &&
+                    initialContent &&
+                    initialContent !== '<p></p>'
+                ) {
+
+                    editor.commands.setContent(
+                        initialContent,
+                        false
+                    )
+                }
+
+            }, 500)
 
             let saveTimer = null
 

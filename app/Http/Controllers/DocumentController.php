@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Models\DocumentCollaborator;
 use App\Models\DocumentRevision;
 use App\Models\User;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 
@@ -47,7 +48,10 @@ class DocumentController extends Controller
             'content' => '',
         ]);
 
-        return redirect()->route('documents.edit', $document);
+        return redirect()->route(
+            'documents.edit',
+            $document
+        );
     }
 
     public function show(Document $document)
@@ -59,25 +63,24 @@ class DocumentController extends Controller
             'collaborators.user',
         ]);
 
-        return view('documents.show', compact('document'));
+        return view('documents.show', compact(
+            'document'
+        ));
     }
 
     public function edit(Document $document)
     {
         $this->ensureAccess($document);
 
-        return view('documents.edit', compact('document'));
+        return view('documents.edit', compact(
+            'document'
+        ));
     }
 
-    public function collab(Document $document)
-    {
-        $this->ensureAccess($document);
-
-        return view('documents.collab', compact('document'));
-    }
-
-    public function update(Request $request, Document $document)
-    {
+    public function update(
+        Request $request,
+        Document $document
+    ) {
         $this->ensureAccess($document);
 
         $validated = $request->validate([
@@ -85,30 +88,59 @@ class DocumentController extends Controller
             'content' => ['nullable', 'string'],
         ]);
 
+        /*
+        =========================================
+        SAVE REVISION
+        =========================================
+        */
+
         if (
             $document->title !== $validated['title'] ||
-            $document->content !== ($validated['content'] ?? '')
+
+            $document->content !==
+            ($validated['content'] ?? '')
         ) {
+
             DocumentRevision::create([
                 'document_id' => $document->id,
                 'user_id' => Auth::id(),
+
                 'title' => $document->title,
+
                 'content' => $document->content,
             ]);
         }
 
+        /*
+        =========================================
+        UPDATE DOCUMENT
+        =========================================
+        */
+
         $document->update([
             'title' => $validated['title'],
-            'content' => $validated['content'] ?? '',
+
+            'content' =>
+                $validated['content'] ?? '',
         ]);
 
+        /*
+        =========================================
+        JSON RESPONSE
+        =========================================
+        */
+
         if ($request->expectsJson()) {
+
             return response()->json([
                 'success' => true,
             ]);
         }
 
-        return redirect()->route('documents.edit', $document);
+        return redirect()->route(
+            'documents.edit',
+            $document
+        );
     }
 
     public function history(Document $document)
@@ -125,54 +157,109 @@ class DocumentController extends Controller
         ));
     }
 
-    public function restore(Document $document, DocumentRevision $revision)
-    {
-        $this->ensureAccess($document);
+    public function restore(
+        Document $document,
+        DocumentRevision $revision
+    ) {
+        $this->ensureOwner($document);
 
-        if ($revision->document_id !== $document->id) {
+        if (
+            $revision->document_id !==
+            $document->id
+        ) {
             abort(404);
         }
 
+        /*
+        =========================================
+        SAVE CURRENT STATE BEFORE RESTORE
+        =========================================
+        */
+
         DocumentRevision::create([
             'document_id' => $document->id,
+
             'user_id' => Auth::id(),
+
             'title' => $document->title,
+
             'content' => $document->content,
         ]);
 
+        /*
+        =========================================
+        RESTORE REVISION
+        =========================================
+        */
+
         $document->update([
             'title' => $revision->title,
+
             'content' => $revision->content,
         ]);
 
-        return redirect()->route('documents.edit', $document);
+        return redirect()->route(
+            'documents.edit',
+            $document
+        );
     }
 
-    public function share(Request $request, Document $document)
-    {
+    public function share(
+        Request $request,
+        Document $document
+    ) {
         $this->ensureOwner($document);
 
         $validated = $request->validate([
             'email' => ['required', 'email'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where(
+            'email',
+            $validated['email']
+        )->first();
+
+        /*
+        =========================================
+        USER NOT FOUND
+        =========================================
+        */
 
         if (! $user) {
+
             return back()->withErrors([
-                'email' => 'User tidak ditemukan.',
+                'email' =>
+                    'User tidak ditemukan.',
             ]);
         }
 
-        if ($user->id === $document->user_id) {
+        /*
+        =========================================
+        OWNER CANNOT SHARE TO SELF
+        =========================================
+        */
+
+        if (
+            $user->id ===
+            $document->user_id
+        ) {
+
             return back()->withErrors([
-                'email' => 'Itu owner document ini.',
+                'email' =>
+                    'Itu owner document ini.',
             ]);
         }
+
+        /*
+        =========================================
+        CREATE / UPDATE COLLABORATOR
+        =========================================
+        */
 
         DocumentCollaborator::updateOrCreate(
             [
                 'document_id' => $document->id,
+
                 'user_id' => $user->id,
             ],
             [
@@ -180,7 +267,10 @@ class DocumentController extends Controller
             ]
         );
 
-        return back()->with('success', 'Document shared successfully.');
+        return back()->with(
+            'success',
+            'Document shared successfully.'
+        );
     }
 
     public function destroy(Document $document)
@@ -189,14 +279,28 @@ class DocumentController extends Controller
 
         $document->delete();
 
-        return redirect()->route('documents.index');
+        return redirect()
+            ->route('documents.index')
+            ->with(
+                'success',
+                'Document deleted successfully.'
+            );
     }
 
-    private function ensureAccess(Document $document): void
-    {
+    /*
+    =========================================
+    ACCESS CONTROL
+    =========================================
+    */
+
+    private function ensureAccess(
+        Document $document
+    ): void {
+
         $userId = Auth::id();
 
         $allowed =
+
             $document->user_id === $userId ||
 
             $document->collaborators()
@@ -206,8 +310,10 @@ class DocumentController extends Controller
         abort_unless($allowed, 403);
     }
 
-    private function ensureOwner(Document $document): void
-    {
+    private function ensureOwner(
+        Document $document
+    ): void {
+
         abort_unless(
             $document->user_id === Auth::id(),
             403
