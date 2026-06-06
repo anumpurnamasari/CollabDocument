@@ -7,4 +7,4 @@ const server = new Server({
 
 server.listen()
 
-console.log('Hocuspocus server running on ws://127.0.0.1:1234')
+console.log('Hocuspocus server running on ws://192.168.234.215')

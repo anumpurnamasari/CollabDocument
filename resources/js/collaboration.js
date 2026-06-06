@@ -10,7 +10,7 @@ window.createCollaborativeEditor = ({ element, documentId, user, initialContent 
     const ydoc = new Y.Doc()
 
     const provider = new HocuspocusProvider({
-        url: 'ws://127.0.0.1:1234',
+        url: 'ws://192.168.234.215:1234',
         name: `document-${documentId}`,
         document: ydoc,
     })
